@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="FrameworkDetectionExcludesConfiguration">
+    <file type="web" url="file://$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_16" default="true" project-jdk-name="temurin-16" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="jpab" />
+  </component>
+  <component name="UnattendedHostPersistenceState">
+    <option name="openedFilesInfos">
+      <list>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="1307" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/src/main/kotlin/com/neitex/generators/Enum.kt" />
+        </OpenedFileInfo>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="0" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/src/main/kotlin/com/neitex/generators/FileDefinition.kt" />
+        </OpenedFileInfo>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="163" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/src/main/kotlin/com/neitex/generators/Interface.kt" />
+        </OpenedFileInfo>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="1329" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/src/main/kotlin/com/neitex/generators/InternalDefinitions.kt" />
+        </OpenedFileInfo>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="378" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/src/main/kotlin/Main.kt" />
+        </OpenedFileInfo>
+      </list>
+    </option>
+  </component>
+</project>
