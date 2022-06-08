@@ -1,5 +1,6 @@
-import com.neitex.DYNAMIC_CHANGES_MAP
-import com.neitex.generators.*
+import com.neitex.DYNAMIC_IMPORTS
+import com.neitex.generators.FileDefinition
+import com.neitex.generators.KotlinPackage
 import java.io.File
 import java.io.IOException
 import java.nio.file.FileVisitResult
@@ -19,16 +20,18 @@ fun main(args: Array<String>) {
     Files.walkFileTree(basePath, object : FileVisitor<Path> {
         override fun preVisitDirectory(dir: Path?, attrs: BasicFileAttributes?): FileVisitResult {
             println("Visiting: $dir")
+            if (dir?.name?.startsWith("analytics") == true)
+                return FileVisitResult.SKIP_SUBTREE
             return FileVisitResult.CONTINUE
         }
 
         override fun visitFile(file: Path, attrs: BasicFileAttributes?): FileVisitResult {
             if (file.toFile().extension != "ts")
                 return FileVisitResult.CONTINUE
-            if (prevHash != DYNAMIC_CHANGES_MAP.hashCode())
+            if (prevHash != DYNAMIC_IMPORTS.hashCode())
             {
-                prevHash = DYNAMIC_CHANGES_MAP.hashCode()
-                println("New in map: $DYNAMIC_CHANGES_MAP")
+                prevHash = DYNAMIC_IMPORTS.hashCode()
+//                println("New in map: $DYNAMIC_IMPORTS")
             }
             val Package = KotlinPackage("ringui." + file.toAbsolutePath().parent.toString().removePrefix("$basePath/"))
             File("$baseOutputPath/${Package.physicalPath}").mkdirs()
@@ -54,4 +57,5 @@ fun main(args: Array<String>) {
         }
 
     })
+    println("Everything done!")
 }

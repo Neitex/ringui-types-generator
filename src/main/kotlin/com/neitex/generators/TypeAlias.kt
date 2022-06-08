@@ -3,27 +3,28 @@ package com.neitex.generators
 import com.neitex.*
 
 data class TypeAlias(private val originalDefinition: String) : DefinitionGenerator {
+    override val type: GeneratorType
+        get() = GeneratorType.TYPEALIAS
+    private val comment = COMMENT_REGEX.find(originalDefinition)?.value
     override val name: String =
         originalDefinition.substringBefore("=").replaceAll(typescriptGarbage.map { Pair(it, "") } + Pair("type", ""))
             .dropLast(1).trim().trimIndent().toLegalJsName()
     private val upperBoundDefinitionGenerators = originalDefinition.substringAfter("=").trim().trimIndent().let {
         if (it.startsWith("{\n")) Interface(
-            "${name}Interface", it.substringAfter("{\n").substringBeforeLast("\n}"), false
+            "${name}Interface", it.substringAfter("{\n").substringBeforeLast("\n}"), true // typealiases are always external
         )
         else null
     }
     private val aliasedTo =
         (upperBoundDefinitionGenerators?.name ?: originalDefinition.substringAfter("=").trim().trimIndent()
-            .convertToKotlinTypes().removeSuffix(";")).let {
-            DYNAMIC_CHANGES_MAP[name] = it
-            it
+            .convertToKotlinTypes().removeSuffix(";")).also {
+            DYNAMIC_GENERATED_TYPES[name] = it
         }
 
-    override fun toKotlinDefinition(): Pair<String, Array<RequiredImport>> {
-        return Pair(
-            "${upperBoundDefinitionGenerators?.toKotlinDefinition()?.first?.plus("\n") ?: ""}// typealias ${name.toLegalJsName()} = ${
-                upperBoundDefinitionGenerators?.name ?: aliasedTo
-            }", upperBoundDefinitionGenerators?.toKotlinDefinition()?.second ?: arrayOf()
-        )
-    }
+    override fun toKotlinDefinition(): KotlinDefinition =
+        KotlinDefinition(upperBoundDefinitionGenerators?.let { arrayOf(it) } ?: arrayOf(),
+            name,
+            "${comment?.plus("\n") ?: ""}// typealias $name = $aliasedTo",
+            null,
+            setOf())
 }

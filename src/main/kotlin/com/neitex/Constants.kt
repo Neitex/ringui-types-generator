@@ -9,10 +9,11 @@ const val SUPPRESS_ILLEGAL_CHARS = """@Suppress("NAME_CONTAINS_ILLEGAL_CHARS")""
 internal const val STRING = "String"
 
 val COMMENT_REGEX =
-    Regex("(\\/\\*\\*\\n[\\w\\W]*?\\*\\/)\\n") // Regex("(\\/\\*\\*\\n[a-zA-Z0-9\\@\\*\\s\\n\\ \\{\\}\\.\\,\\<\\>]*\\*\\/)\\n")
-val UNION_REGEX = Regex("\\s*(\\w*\\ \\|\\ \\w*)")
+    Regex("(/\\*\\*?\\n[\\w\\W]*?\\*/)\\n")
+val UNION_REGEX =
+    Regex("([\\w <\\[\\]>():=.,]*) ?\\| ?([\\w()=:\\[\\] <>.,]*)((?> ?\\| ?)([\\w()\\[\\].= <>,]*)?)?;?")
 val FUNCTION_REGEX =
-    Regex("([\\w\\d\\_]+)(\\<[\\w\\d\\s\\<\\>\\:\\|\\?\\,]*\\>)?\\(([\\w\\d\\?\\<\\>\\,\\s\\:\\|\\(\\)\\=\\[\\]]*?)\\)\\s*\\:\\s*([\\w\\d\\:\\s\\<\\>\\[\\]\\.\\|\\(\\)\\=]*);")
+    Regex("([\\w\\d_]+)(<[\\w\\d\\s<>:|?,]*>)?\\(([\\w\\d?<>,\\s:|()=\\[\\]]*?)\\)\\s*:\\s*([\\w{};\\d:\\s<>\\[\\].|()=\\n]*);")
 
 internal val STANDARD_TYPE_MAP = mapOf(
     "any" to "Any",
@@ -50,20 +51,24 @@ internal val STANDARD_TYPE_MAP = mapOf(
     " extends " to ": ",
     "React.ReactPortal" to "ReactPortal",
     "JSX.Element" to "ReactNode?",
-    "val:" to """`val`:"""
+    "val:" to """`val`:""",
+    "React.RefObject<HTMLElement> | ((ref: HTMLElement | null) => void)" to "dynamic /* React.RefObject<HTMLElement> | ((ref: HTMLElement | null) => void) */"
 )
 
 val STATIC_IMPORTS_MAP = mapOf(
     "HTMLAttributes" to "react.dom.html.HTMLAttributes",
+    "InputHTMLAttributes" to "react.dom.html.InputHTMLAttributes",
+    "HTMLInputElement" to "org.w3c.dom.HTMLInputElement",
+    "CSSProperties" to "react.CSSProperties",
+    "Ref<" to "react.Ref",
     "PureComponent" to "react.PureComponent",
     "MouseEvent" to "react.dom.MouseEvent",
     "HTMLIFrameElement" to "org.w3c.dom.HTMLIFrameElement",
     "ReactNode" to "react.ReactNode",
     "HTMLDivElement" to "org.w3c.dom.HTMLDivElement",
-    "State>" to "react.State",
+    "State" to "react.State",
     "ReactPortal" to "react.ReactPortal",
     "React.ReactPortal" to "react.ReactPortal",
-    "HTMLAttributes" to "react.dom.html.HTMLAttributes",
     " Component" to "react.Component",
     "HTMLSpanElement" to "org.w3c.dom.HTMLSpanElement",
     "NativeMouseEvent" to "react.dom.events.NativeMouseEvent",
@@ -74,35 +79,48 @@ val STATIC_IMPORTS_MAP = mapOf(
     "Props" to "react.Props",
     "Node" to "org.w3c.dom.Node",
     "Component" to "react.Component",
-    "Record" to "kotlinx.js.Record"
+    "Record" to "kotlinx.js.Record",
+    "Promise" to "kotlin.js.Promise",
+    "CanvasRenderingContext2D" to "org.w3c.dom.CanvasRenderingContext2D",
+    "HTMLCanvasElement" to "org.w3c.dom.HTMLCanvasElement",
+    "RequestCredentials" to "org.w3c.fetch.RequestCredentials"
 )
 
-val OVERRIDDEN_PROPERTIES = listOf("render", "componentDidMount", "componentWillUnmount")
+val OVERRIDDEN_PROPERTIES = listOf("render", "componentDidMount", "componentWillUnmount", "state")
 
-val DYNAMIC_CHANGES_MAP = mutableMapOf<String, String>()
+val DYNAMIC_GENERATED_TYPES = mutableMapOf<String, String>()
+val DYNAMIC_IMPORTS = mutableMapOf<String, String>()
 
-val REGEX_REPLACERS = mapOf<Regex, (MatchResult) -> CharSequence>(Regex("(?>readonly\\s)*([\\w]*)(?>\\[\\])") to {
+val REGEX_REPLACERS = mapOf<Regex, (MatchResult) -> CharSequence>(Regex("(?>readonly\\s)*([\\w]*)(?>\\[])") to {
     "${if (it.groupValues.first().startsWith("readonly")) "Readonly" else ""}Array<${
         it.groupValues.first().replaceAll(listOf(Pair("readonly ", ""), Pair("[]", "")))
     }>"
 }, Regex("\\?:\\s?") to {
     ": "
-}, Regex("(?>MouseEvent\\<)([\\w\\[\\]\\:\\.\\s\\,\\<\\>]*)\\>") to {
+}, Regex("(?>MouseEvent<)([\\w\\[\\]:.\\s,<>]*)>") to {
     "MouseEvent<${it.groupValues[1]}, NativeMouseEvent>"
-}, Regex("(\\[[a-zA-Z\\s\\|0-9\\,\\<\\>\\[\\]\\|\\?]+\\])") to {
+}, Regex("(\\[[a-zA-Z\\s|\\d,<>\\[\\]?]+])") to {
     """dynamic /* ${it.groupValues[1]} */"""
+}, Regex("\\w*(\\[['\\w]*])") to {
+    "dynamic /* ${it.value} */"
 }, UNION_REGEX to {
     """dynamic /* ${it.groupValues.drop(1).joinToString(separator = ",")} */"""
-}, Regex("(typeof [\\w\\[\\]\\:\\.\\s\\,\\<\\>]*)") to {
+}, Regex("(typeof [\\w\\[\\]:.\\s,<>]*)") to {
     """dynamic /* ${it.groupValues[1]} */"""
-}, Regex("(keyof [\\w\\[\\]\\:\\.\\d]*)") to {
+}, Regex("(keyof [\\w\\[\\]:.\\d]*)") to {
     """Any /* ${it.groupValues[1]} */"""
-}, Regex("PureComponent<([\\w\\W]*?)>") to {
+}, Regex("PureComponent<([\\w\\W]*)>") to {
     "PureComponent<${it.groupValues[1].removeSuffix(", State")}, State>"
-}, Regex("HTMLAttributes<([\\w\\_\\,\\<\\>]*?), State>") to {
+}, Regex("PureComponent(?!<)") to {
+    "PureComponent<Props, State>"
+}, Regex("HTMLAttributes<([\\w_]*?), State>") to {
     "HTMLAttributes<${it.groupValues[1]}>"
 }, Regex("Partial<([\\w\\W]*?)>") to {
     it.groupValues[1]
-}, Regex("Component<([\\w\\_\\<\\>]*?)>") to {
+}, Regex("Component<([\\w_<>]*?)>") to {
     "Component<${it.groupValues[1]}, State>"
+}, Regex("Omit<([\\w<>]*?), '\\w*'>") to {
+    "${it.groupValues[1]} /* ${it.value} */"
 })
+
+val DYNAMIC_REGEX_REPLACERS = mutableMapOf<Regex, (MatchResult) -> String>()

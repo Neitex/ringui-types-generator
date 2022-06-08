@@ -3,6 +3,8 @@ package com.neitex.generators
 import com.neitex.*
 
 data class Constructor(private val originalDefinition: String) : DefinitionGenerator {
+    override val type: GeneratorType
+        get() = GeneratorType.CONSTRUCTOR
     override val name: String = "constructor"
     private val comment = COMMENT_REGEX.find(originalDefinition)?.value?.plus("\n") ?: ""
     private val arguments =
@@ -15,10 +17,9 @@ data class Constructor(private val originalDefinition: String) : DefinitionGener
                 )
             }
 
-    override fun toKotlinDefinition(): Pair<String, Array<RequiredImport>> = Pair("${comment}constructor${
+    override fun toKotlinDefinition(): KotlinDefinition = KotlinDefinition(arrayOf(),name, "${comment}constructor${
         arguments.joinToString(separator = ", ", prefix = "(", postfix = ")") {
             "${it.first.removeSuffix("?")}: ${it.second}"
         }
-    }", arguments.map { it.second.findImportedThings() }.flatten().toTypedArray()
-    )
+    }", null, arguments.map {it.second.findImportedThings() }.flatten().toSet())
 }

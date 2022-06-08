@@ -19,7 +19,10 @@ fun String.replaceAll(replaceList: List<Pair<String, String>>) = replaceList.fol
 
 fun String.toLegalJsName() = if ('-' in this) "`${this.replace("'", "")}`" else this
 
-fun String.findImportedThings() = STATIC_IMPORTS_MAP.keys.filter { this.contains(it) }
+fun String.findImportedThings() =
+    STATIC_IMPORTS_MAP.keys.filter { this.contains(it) }.let { list ->
+        list + DYNAMIC_IMPORTS.keys.filter { !list.contains(it) && this.contains(it) }
+    }.toSet()
 
 /**
  * Takes insides of brackets: constructor( INSIDES.splitArguments() )
@@ -29,7 +32,7 @@ fun String.splitArguments() = if (this.isNotBlank()) {
     val levelUpCharacters = sequenceOf(')', '>')
 
     val argumentsList = mutableListOf<Pair<String, String>>()
-    var currentDeepLevel: Int = 0
+    var currentDeepLevel = 0
     var name = ""
     var passedName = false
     var type = ""
@@ -105,7 +108,7 @@ fun String.replaceComment(newValue: String) = this.replace(COMMENT_REGEX, newVal
 
 // I don't like my naming either.
 fun String.treatArgumentType() =
-    Regex(".*\\&.*").replace(this) {
+    Regex(".*&.*").replace(this) {
         "dynamic /* ${it.value} */"
     }.convertToKotlinTypes()
 // Main reason for this function to exist is that we may not fear to get out of scope of the argument while using Regex.
@@ -115,9 +118,14 @@ fun String.treatArgumentType() =
 fun String.treatArgumentName(nameIfInvalid: String) =
     if (this.startsWith("{")) nameIfInvalid else this
 
+
 fun String.convertToKotlinTypes() =
     this.replaceAll(STANDARD_TYPE_MAP.map { it.toPair() } + Pair("??", "?") + Pair("?:", ":") /* (event?:...)  */).let {
         REGEX_REPLACERS.entries.fold(it) { string, replacer ->
             string.replace(replacer.key, replacer.value)
         }
-    }.replaceAll(DYNAMIC_CHANGES_MAP.map { Pair(it.key, it.value) })
+    }.replaceAll(DYNAMIC_GENERATED_TYPES.map { Pair(it.key, it.value) }).let {
+        DYNAMIC_REGEX_REPLACERS.entries.fold(it) { string, replacer ->
+            string.replace(replacer.key, replacer.value)
+        }
+    }
