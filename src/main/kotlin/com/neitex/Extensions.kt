@@ -82,16 +82,18 @@ fun String.splitBody(): List<String> {
     val expressionsList = mutableListOf<String>()
     var currentLevel = 0
     var currentExpression = ""
-    for (string in ("$this\n$randomEndNote").lines()) {
+    for (string in ("${this.replaceComment("")}\n$randomEndNote").lines()) {
         if (string == randomEndNote) {
             expressionsList += currentExpression
             continue
         }
         currentExpression += "\n$string"
-        if (string.trim().contains("{"))
-            currentLevel++
-        else if (string.trim().contains("}"))
-            currentLevel--
+        for (char in string) {
+            if (char == '{')
+                currentLevel++
+            if (char == '}')
+                currentLevel--
+        }
         if (string.trim().endsWith(";")) {
             if (currentLevel == 0) {
                 expressionsList += currentExpression.takeIf { it.isNotBlank() } ?: string
@@ -100,6 +102,8 @@ fun String.splitBody(): List<String> {
             continue
         }
     }
+    if (this.contains("logout(extraParams?: Record<string, unknown>): Promise<void>;"))
+        println("e")
     return expressionsList
         .filter { it.isNotBlank() }
 }

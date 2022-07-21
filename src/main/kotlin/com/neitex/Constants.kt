@@ -8,12 +8,11 @@ const val SUPPRESS_ILLEGAL_CHARS = """@Suppress("NAME_CONTAINS_ILLEGAL_CHARS")""
 
 internal const val STRING = "String"
 
-val COMMENT_REGEX =
-    Regex("(/\\*\\*?\\n[\\w\\W]*?\\*/)\\n")
-val UNION_REGEX =
-    Regex("([\\w <\\[\\]>():=.,]*) ?\\| ?([\\w()=:\\[\\] <>.,]*)((?> ?\\| ?)([\\w()\\[\\].= <>,]*)?)?;?")
+val COMMENT_REGEX = Regex("(/\\*\\*?\\n?[\\w\\W]*?\\*/)\\n?")
+val UNION_REGEX = Regex("(?<!dynamic)([\\w <\\[\\]>():=.,]*) ?\\| ?([\\w()=:\\[\\] <>.,]*)((?> ?\\| ?)[\\w()\\[\\].= <>,]*)?")
 val FUNCTION_REGEX =
-    Regex("([\\w\\d_]+)(<[\\w\\d\\s<>:|?,]*>)?\\(([\\w\\d?<>,\\s:|()=\\[\\]]*?)\\)\\s*:\\s*([\\w{};\\d:\\s<>\\[\\].|()=\\n]*);")
+    Regex("([\\w\\d_]+)(<[\\w\\d\\s<>:|?,]*>)?\\(([\\w\\d?<>,{}\\s:|()=\\[\\]]*?)\\)\\s*:\\s*([\\w{};\\d:\\s<>\\[\\].|(),=\\n]*?);")
+val LAMBDA_REGEX = Regex("""\(([^)]+)\) => ([^\n]+)""")
 
 internal val STANDARD_TYPE_MAP = mapOf(
     "any" to "Any",
@@ -35,15 +34,15 @@ internal val STANDARD_TYPE_MAP = mapOf(
 
     "Date" to "kotlin.js.Date",
 
-    "false" to "Boolean /* false */",
-    "true" to "Boolean /* true */",
+    "false" to "Boolean",
+    "true" to "Boolean",
 
     "() => T" to "() -> T",
     "() => Boolean" to "() -> Boolean",
     "=>" to "->",
 
-    "Int | String" to """String /* Int | String */""", //TODO: Fix comments in cases like "fun remove(key: String /* String /* String | Int */ */?)" (components/alert-service/alert-service)
-    "String | Int" to """String /* String | Int */""",
+    "Int | String" to """String""", //TODO: Fix comments in cases like "fun remove(key: String /* String /* String | Int */ */?)" (components/alert-service/alert-service)
+    "String | Int" to """String""",
 
     "React.MouseEvent" to "MouseEvent",
     " | Nothing?" to "?",
@@ -83,10 +82,19 @@ val STATIC_IMPORTS_MAP = mapOf(
     "Promise" to "kotlin.js.Promise",
     "CanvasRenderingContext2D" to "org.w3c.dom.CanvasRenderingContext2D",
     "HTMLCanvasElement" to "org.w3c.dom.HTMLCanvasElement",
-    "RequestCredentials" to "org.w3c.fetch.RequestCredentials"
+    "RequestCredentials" to "org.w3c.fetch.RequestCredentials",
+    "Response" to "org.w3c.fetch.Response",
+    "RequestInit" to "org.w3c.fetch.RequestInit"
 )
 
-val OVERRIDDEN_PROPERTIES = listOf("render", "componentDidMount", "componentWillUnmount", "state")
+val OVERRIDDEN_PROPERTIES: Map<String, List<String>> = mapOf(
+    "PureComponent" to listOf("render", "componentDidMount", "componentWillUnmount"),
+    "RequestInit" to listOf("body"),
+    "LoginFlow" to listOf("stop", "authorize")
+)
+val FINAL_PROPERTIES: Map<String, List<String>> = mapOf(
+    "PureComponent" to listOf("state")
+)
 
 val DYNAMIC_GENERATED_TYPES = mutableMapOf<String, String>()
 val DYNAMIC_IMPORTS = mutableMapOf<String, String>()

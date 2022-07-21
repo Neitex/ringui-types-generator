@@ -23,6 +23,7 @@ data class FileDefinition(val file: File, val module: String?, val Package: Kotl
             .plus(reallyComplexRegexToMatchInterfacesAndClasses.findAll(this).map { it.value }.toList())
 
     private val definition = file.readLines().filterNot { it.startsWith("import") }.joinToString(separator = "\n")
+//    val defines =
 
     fun writeToFile(file: File) {
         val generators = definition.splitFileBody().map {
@@ -38,6 +39,9 @@ data class FileDefinition(val file: File, val module: String?, val Package: Kotl
                     .filter { !it.startsWith(Package.packagePath) }.toSet()
             )
         }
+        if (Package.packagePath.contains("auth")){
+            println("pepe")
+        }
         file.writeText("""${
             module?.let {
                 """@file:JsModule("$it")
@@ -48,7 +52,7 @@ package ${Package.packagePath}
 ${
             imports.joinToString(separator = "\n", prefix = "\n", postfix = "\n") {
                 "import $it"
-            }.let { if (it.isNotBlank()) "$it\n" else ""}
+            }.let { if (it.isNotBlank()) "$it\n" else "" }
         }${
             childDefinitions.joinToString(separator = "\n") {
                 it.toKotlinDefinition().toString()

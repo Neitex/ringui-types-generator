@@ -1,6 +1,8 @@
 package com.neitex.generators
 
 import com.neitex.FUNCTION_REGEX
+import com.neitex.OVERRIDDEN_PROPERTIES
+import com.neitex.FINAL_PROPERTIES
 import com.neitex.replaceAll
 import com.neitex.replaceComment
 
@@ -31,12 +33,39 @@ data class KotlinDefinition(
      * Generates String representation of definition
      */
     override fun toString(): String {
-        return """${additionalDefinitions.joinToString(separator = "\n") { it.toKotlinDefinition().toString() }}$header${
+        return """${
+            additionalDefinitions.joinToString(separator = "\n") {
+                it.toKotlinDefinition().toString()
+            }
+        }$header${
             body?.let {
                 " {\n$it\n}"
             } ?: ""
         }
         """
+    }
+
+    fun toString(extendedFrom: String): String {
+        return """${
+            additionalDefinitions.joinToString(separator = "\n") {
+                it.toKotlinDefinition().toString(extendedFrom)
+            }
+        }${
+            if (OVERRIDDEN_PROPERTIES[extendedFrom]?.contains(
+                    name
+                ) == true
+            ) "override " else ""
+        }$header${
+            body?.let {
+                " {\n$it\n}"
+            } ?: ""
+        }
+        """.let {
+            if (FINAL_PROPERTIES[extendedFrom]?.contains(name) == true) it.lines().joinToString(separator = "\n") {
+                "// $it"
+            }
+            else it
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -78,7 +107,9 @@ fun parseExpression(expression: String): DefinitionGenerator {
         definition.startsWith("class ") -> Class(expression)
         definition.startsWith("enum") -> Enum(expression)
         definition.startsWith("global ") -> parseExpression(expression.substringAfter("{\n").substringBefore("}"))
-        definition.contains(Regex("^(private\\s?)|(static\\s?)|(state\\s?\\{)")) -> EmptyDefinitionGenerator(expression)
+        definition.contains(Regex("^ *(private\\s?)|(static\\s?)|(state\\s?\\{)")) -> EmptyDefinitionGenerator(
+            expression
+        )
         definition.startsWith("constructor") || definition.startsWith("new ") -> Constructor(expression)
         definition.startsWith("const") -> Const(expression)
         definition.contains(FUNCTION_REGEX) -> Function(
@@ -88,3 +119,26 @@ fun parseExpression(expression: String): DefinitionGenerator {
     }
 }
 
+
+// List of Kotlin primitive types
+val kotlinPrimitiveTypes = listOf(
+    "Boolean", "Byte", "Char", "Double", "Float", "Int", "Long", "Short", "String"
+)
+
+// List of Kotlin/JS specific types
+val kotlinJsTypes = listOf(
+    "Array",
+    "Date",
+    "Error",
+    "Function",
+    "Map",
+    "Number",
+    "Object",
+    "Promise",
+    "RegExp",
+    "Set",
+    "String",
+    "Symbol",
+    "WeakMap",
+    "WeakSet"
+)

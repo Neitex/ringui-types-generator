@@ -37,12 +37,8 @@ data class Class(private val originalDefinition: String) : DefinitionGenerator {
         name,
         "${comment?.plus("\n") ?: ""}external class $name${generic?.let { "<$it> " } ?: ""}${implementsOrExtends?.let { ": $it " } ?: ""}",
         nestedGenerators.joinToString(separator = "\n", prefix = "", postfix = "") {
-            if (it.name in OVERRIDDEN_PROPERTIES) when (it.type) {
-                GeneratorType.FUNCTION -> "override ${it.toKotlinDefinition()}"
-                GeneratorType.VALUE -> it.toKotlinDefinition()
-                    .toString().lines().joinToString(separator = "\n") { "// $it" }
-                else -> error(it.toKotlinDefinition())
-            }.prependIndent("    ")
+            if (implementsOrExtends != null) it.toKotlinDefinition()
+                .toString(implementsOrExtends.replaceComment("").substringBefore("<").trim()).prependIndent("    ")
             else it.toKotlinDefinition().toString().prependIndent("    ")
         },
         nestedGenerators.map { it.toKotlinDefinition().imports }.flatten()

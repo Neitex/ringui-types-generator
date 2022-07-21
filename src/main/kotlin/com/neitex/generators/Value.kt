@@ -19,26 +19,16 @@ data class Value(private val originalDefinition: String) : DefinitionGenerator {
             }, it.trimIndent().trim().substringAfter("{\n").substringBeforeLast("};"), false)
             else null
         }
-    private val valtype =
+    private val valType =
         if (upperBoundDefinitionGenerators == null) originalDefinition.substringAfter(":").trim().trimIndent().let {
-            if (it.startsWith("(")) {
-                Regex("\\(?\\(([\\w\\W]*?)\\) => ([\\w\\W]*?)[);]").find(
-                    it
-                )?.groupValues?.drop(1)?.let {
-                    "${
-                        it.dropLast(1).joinToString(
-                            separator = ", ", prefix = "(", postfix = ")"
-                        ) // TODO: Make sure no thing like "({something, something2}: String) -> Unit" comes to the generated code
-                    } -> ${it.last()}"
-                }?.convertToKotlinTypes()
-            } else it.convertToKotlinTypes()
-        }?.removeSuffix(";") else null
+            if (LAMBDA_REGEX.containsMatchIn(it)) LambdaType(it).toString() else it.convertToKotlinTypes()
+        } else null
 
     override fun toKotlinDefinition(): KotlinDefinition =
         KotlinDefinition(upperBoundDefinitionGenerators?.let { arrayOf(it) } ?: arrayOf(),
             name,
-            "$comment${if (name.contains('`')) "\n$SUPPRESS_ILLEGAL_CHARS\n" else ""}${if (isReadonly) "val" else "var"} $name: ${upperBoundDefinitionGenerators?.name ?: valtype}",
+            "$comment${if (name.contains('`')) "\n$SUPPRESS_ILLEGAL_CHARS\n" else ""}${if (isReadonly) "val" else "var"} $name: ${upperBoundDefinitionGenerators?.name ?: valType}",
             null,
-            valtype?.findImportedThings()?.toSet() ?: setOf())
+            valType?.findImportedThings()?.toSet() ?: setOf())
 
 }

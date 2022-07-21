@@ -14,10 +14,28 @@ class Interface : DefinitionGenerator {
     constructor(originalDefinition: String) {
         name = originalDefinition.replaceComment("").substringBefore("{")
             .replaceAll(typescriptGarbage.map { Pair(it, "") } + Pair("interface", "")).substringBefore("extends")
+            .substringBefore("<")
             .trim().trimIndent().toLegalJsName()
         genericTypes =
-            originalDefinition.replaceComment("").substringBefore("{").substringBefore("extends").substringAfter(name)
-                .trimIndent().trim().takeIf { it.startsWith("<") }?.convertToKotlinTypes()
+            originalDefinition.replaceComment("").substringBefore("{").substringAfter(name)
+                .substringBefore("extends").substringAfter("<").substringBefore(">").takeIf {
+                    it.isNotBlank()
+                }?.convertToKotlinTypes()?.let {
+                    if (it.contains("=")) {
+                        val defaults = Regex("(\\w) ?= ([\\w\\[\\]<>]+,?)").findAll(it).map {
+                            Pair(it.groups[1]!!.value, it.groups[2]!!.value)
+                        }.toList()
+                        DYNAMIC_REGEX_REPLACERS.put(Regex("$name ?(?![<\\w])")) {
+                            "$name${defaults.joinToString(separator = ", ", prefix = "<", postfix = ">") { it.second }}"
+                        }
+                        it.replaceAll(defaults.map {
+                            Pair(
+                                "${it.first} = ${it.second}",
+                                "${it.first}/* = ${it.second}*/"
+                            )
+                        })
+                    } else it
+                }
         nestedGenerators =
             originalDefinition.replaceComment("").substringAfter("{").substringBeforeLast("}").trim().trimIndent()
                 .splitBody().map { parseExpression(it) }
@@ -46,13 +64,14 @@ class Interface : DefinitionGenerator {
         val definitions = nestedGenerators.map { it.toKotlinDefinition() }
         val definition = KotlinDefinition(arrayOf(),
             name,
-            "${if (isExternal) "external " else ""}interface $name${genericTypes ?: ""}${if (extendsFrom != null) ": $extendsFrom" else ""}",
+            "${if (isExternal) "external " else ""}interface $name${genericTypes?.let { "<$it>" } ?: ""}${if (extendsFrom != null) ": $extendsFrom" else ""}",
             definitions.map {
                 if (it.name == "constructor")
-                    "// $it"
-                else it.toString()
+                    return@map "// $it"
+                return@map it.toString()
             }.joinToString(separator = "", prefix = "", postfix = "") {
-                it.lines().map { if (!it.startsWith("    ")) it.prependIndent("    ") else it }.joinToString(separator = "\n")
+                it.lines().map { if (!it.startsWith("    ")) it.prependIndent("    ") else it }
+                    .joinToString(separator = "\n")
             },
             definitions.map { it.imports }.flatten().toSet() + (extendsFrom?.findImportedThings() ?: setOf())
         )
